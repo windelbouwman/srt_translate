@@ -7,20 +7,42 @@
 
 import argparse
 import srt
+from googletrans import Translator
+from os import path
+from progress.bar import IncrementalBar
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'original',
-        type=argparse.FileType('r', encoding='utf8'),
-        help='Original srt subtitle file to translate')
-    parser.add_argument('language', help='The language to which to translate')
-    parser.add_argument('translated', type=argparse.FileType('w'))
+    parser.add_argument( '-file', help='SRT subtitle file to translate')
+    parser.add_argument('-language', help='The language to which to translate e.g. "nl"')
     args = parser.parse_args()
+
+    if args.file is None or args.language is None:
+        parser.print_help()
+        print('')
+        raise SyntaxError('One or more argument is missing')
+
+    input_file_name = args.file
     language = args.language
+
+    output_file_name, file_extension = path.splitext(input_file_name)
+    output_file_name = output_file_name + '.' + args.language + file_extension
+
+    print('input file: {}'.format(input_file_name))
+    print('output file: {}'.format(output_file_name))
+    print('Please wait, this may take a while..')
+
+    input_file = open(args.file, "r")
+    input_file_data = input_file.read()
+
     srt_translator = SrtTranslator(language)
-    args.translated.write(srt_translator.translate(args.original.read()))
+    srt_translation = srt_translator.translate(input_file_data)
+
+    output_file = open(output_file_name, "w", encoding='utf8')
+    output_file.write(srt_translation)
+
+    print('Succesfully translated the SRT file, output saved as: {}'.format(output_file_name))
 
 
 class SrtTranslator:
@@ -29,24 +51,29 @@ class SrtTranslator:
         self.language = language
 
     def translate(self, srt_data):
+        translator = Translator()
         """ Translate the given subtitle """
         # Strip BOM (byte order marker):
         if srt_data[0] == chr(0xfeff):
             srt_data = srt_data[1:]
 
-        # print(srt_data[:20].encode('ascii'), type(srt_data))
-        return srt.compose(
-            map(self._translate_subtitle, srt.parse(srt_data)))
+        srt_data = srt_data[3:]
 
-    def _translate_subtitle(self, subtitle: srt.Subtitle) -> srt.Subtitle:
-        """ Translate a single subtitle object """
-        content = self._translate_text(subtitle.content)
-        return srt.Subtitle(
-            subtitle.index, subtitle.start, subtitle.end, content)
+        subs = list(srt.parse(srt_data))
+        bar = IncrementalBar('Translating', max=len(subs))
 
-    def _translate_text(self, text: str) -> str:
-        # TODO
-        return text
+        try:
+            for sub in srt.parse(srt_data):
+                # print('sub: {}'.format(sub.content))
+                sub.content = translator.translate(sub.content, dest=self.language).text
+                # print('translated-sub: {}'.format(sub.content))
+                bar.next()
+        except Exception as Exc:
+            print('Operation failed due to exception: {}'.format(Exc))
+
+        bar.finish()
+
+        return srt.compose(subs)
 
 
 if __name__ == '__main__':
