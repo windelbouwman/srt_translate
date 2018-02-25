@@ -3,10 +3,14 @@
 """ Translate subtitles.
 
 """
+# TODO:
+# 1 - determine if there is a BOM and if yes, skip the length of it
+# 2 - detect encoding of the input file, using chardet?
 
 
 import argparse
 import srt
+import chardet
 from googletrans import Translator
 from os import path
 from progress.bar import IncrementalBar
@@ -63,7 +67,7 @@ class SrtTranslator:
         bar = IncrementalBar('Translating', max=len(subs))
 
         try:
-            for sub in srt.parse(srt_data):
+            for sub in subs:
                 # print('sub: {}'.format(sub.content))
                 sub.content = translator.translate(sub.content, dest=self.language).text
                 # print('translated-sub: {}'.format(sub.content))
