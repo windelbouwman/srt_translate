@@ -4,9 +4,7 @@
 
 """
 # TODO:
-# 1 - determine if there is a BOM and if yes, skip the length of it
-# 2 - detect encoding of the input file, using chardet?
-
+# Fix funny characters in output file, reason unknown..
 
 import argparse
 import srt
@@ -32,21 +30,29 @@ def main():
 
     output_file_name, file_extension = path.splitext(input_file_name)
     output_file_name = output_file_name + '.' + args.language + file_extension
+    file_encoding = get_file_encoding(args.file)
 
-    print('input file: {}'.format(input_file_name))
-    print('output file: {}'.format(output_file_name))
-    print('Please wait, this may take a while..')
+    print('\n')
+    print('Input file:          {}'.format(input_file_name))
+    print('Input file encoding: {}'.format(file_encoding))
+    print('Output file:         {}\n'.format(output_file_name))
 
-    input_file = open(args.file, "r")
+    input_file = open(args.file, "r", encoding=file_encoding)
     input_file_data = input_file.read()
 
     srt_translator = SrtTranslator(language)
     srt_translation = srt_translator.translate(input_file_data)
 
-    output_file = open(output_file_name, "w", encoding='utf8')
+    output_file = open(output_file_name, "w", encoding='utf-8')
     output_file.write(srt_translation)
 
-    print('Succesfully translated the SRT file, output saved as: {}'.format(output_file_name))
+    print('\nSuccesfully translated the SRT file.')
+    print('Output saved as: {}'.format(output_file_name))
+
+def get_file_encoding(filename):
+    raw = open(filename, 'rb').read()
+    result = chardet.detect(raw)
+    return result['encoding']
 
 
 class SrtTranslator:
@@ -56,12 +62,6 @@ class SrtTranslator:
 
     def translate(self, srt_data):
         translator = Translator()
-        """ Translate the given subtitle """
-        # Strip BOM (byte order marker):
-        if srt_data[0] == chr(0xfeff):
-            srt_data = srt_data[1:]
-
-        srt_data = srt_data[3:]
 
         subs = list(srt.parse(srt_data))
         bar = IncrementalBar('Translating', max=len(subs))
