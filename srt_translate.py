@@ -59,6 +59,7 @@ class SrtTranslator:
     """ Object which can translate srt subtitles """
     def __init__(self, language):
         self.language = language
+        self.trans_table = dict.fromkeys(map(ord, u'\u200B'), None)
 
     def translate(self, srt_data):
         translator = Translator()
@@ -69,7 +70,9 @@ class SrtTranslator:
         try:
             for sub in subs:
                 # print('sub: {}'.format(sub.content))
-                sub.content = translator.translate(sub.content, dest=self.language).text
+                translated_line = translator.translate(sub.content, dest=self.language).text 
+                # Remove zero-width char's if any
+                sub.content = translated_line.translate(self.trans_table)
                 # print('translated-sub: {}'.format(sub.content))
                 bar.next()
         except Exception as Exc:
