@@ -54,7 +54,7 @@ def main():
         print('This translation took {} seconds to complete.'.format(t1-t0))
         print('Output saved as: {}'.format(output_file_name))
     except Exception as Exc:
-        print('\nOperation failed due to exception: {}'.format(Exc))
+        print('\nOperation failed due to an exception.')
 
 def get_file_encoding(filename):
     raw = open(filename, 'rb').read()
@@ -75,16 +75,38 @@ class SrtTranslator:
         subs = list(srt.parse(srt_data))
         progress_bar = IncrementalBar('Translating', max=len(subs))
 
-        for sub in subs:
-            # print('sub: {}'.format(sub.content))
-            translated_line = translator.translate(sub.content, dest=self.language).text 
-            # Remove zero-width char's if any
-            sub.content = translated_line.translate(self.trans_table)
-            # print('translated-sub: {}'.format(sub.content))
-            progress_bar.next()
+        try:
+            for sub in subs:
+                # print('sub: {}'.format(sub.content))
+                text_to_be_translated, newline_count = self.remove_newline_char_from_line(sub.content)
+                translated_line = translator.translate(text_to_be_translated, dest=self.language).text 
+                # Remove zero-width char's if any
+                line_to_add_newlines = translated_line.translate(self.trans_table)
+                sub.content = self.add_newline_char_to_line(line_to_add_newlines, newline_count)
+                # print('translated-sub: {}'.format(sub.content))
+                progress_bar.next()
+        except Exception as Exc:
+            print('\nError: {}'.format(Exc))
+            print('Exception occurred while trying to get a translation for:\n\"{}\"\n'.format(text_to_be_translated))
+            raise RuntimeError
 
         progress_bar.finish()
         return srt.compose(subs)
+
+    def remove_newline_char_from_line(self, line):
+        count = line.count('\n')
+        return line.replace('\n', ' '), count
+
+    def add_newline_char_to_line(self, line, count):
+        splitted_line = line.split()
+        amount_of_words = len(splitted_line)
+        word_offset = int(amount_of_words / (count+1)) + 1
+        combined_sentence = ''
+        for count in range(amount_of_words):
+            combined_sentence += splitted_line[count] + ' '
+            if (count+1) % word_offset == 0:
+                combined_sentence += '\n'
+        return combined_sentence
 
 
 if __name__ == '__main__':
