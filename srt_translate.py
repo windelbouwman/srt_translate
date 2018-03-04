@@ -15,8 +15,11 @@ from progress.bar import IncrementalBar
 
 def main():
     parser = argparse.ArgumentParser()
+    help_text_language = 'The language to which to translate e.g. "nl"'
+    help_text_language += '\nCheck for language codes:'
+    help_text_language += '\nhttps://sites.google.com/site/tomihasa/google-language-codes'
     parser.add_argument( '-file', help='SRT subtitle file to translate')
-    parser.add_argument('-language', help='The language to which to translate e.g. "nl"')
+    parser.add_argument('-language', help=help_text_language)
     args = parser.parse_args()
 
     if args.file is None or args.language is None:
@@ -51,7 +54,7 @@ def main():
         t1 = time.clock()
 
         print('\nSuccesfully translated the SRT file.')
-        print('This translation took {} seconds to complete.'.format(t1-t0))
+        print('This translation took {:.2F} seconds to complete.'.format(t1-t0))
         print('Output saved as: {}'.format(output_file_name))
     except Exception as Exc:
         print('\nOperation failed due to an exception.')
@@ -71,24 +74,42 @@ class SrtTranslator:
 
     def translate(self, srt_data):
         translator = Translator()
+        retry_max = 3
+        retry_count = 0
+        translation_succeeded = False
 
         subs = list(srt.parse(srt_data))
         progress_bar = IncrementalBar('Translating', max=len(subs))
 
-        try:
-            for sub in subs:
-                # print('sub: {}'.format(sub.content))
-                text_to_be_translated, newline_count = self.remove_newline_char_from_line(sub.content)
-                translated_line = translator.translate(text_to_be_translated, dest=self.language).text 
-                # Remove zero-width char's if any
-                line_to_add_newlines = translated_line.translate(self.trans_table)
-                sub.content = self.add_newline_char_to_line(line_to_add_newlines, newline_count)
-                # print('translated-sub: {}'.format(sub.content))
-                progress_bar.next()
-        except Exception as Exc:
-            print('\nError: {}'.format(Exc))
-            print('Exception occurred while trying to get a translation for:\n\"{}\"\n'.format(text_to_be_translated))
-            raise RuntimeError
+        for sub in subs:
+            retry_count = 0
+            translation_succeeded = False
+
+            # print('sub: {}'.format(sub.content))
+            text_to_be_translated, newline_count = self.remove_newline_char_from_line(sub.content)
+
+            while not translation_succeeded and retry_count < retry_max:
+                try:
+                    translated_line = translator.translate(text_to_be_translated, dest=self.language).text 
+                    translation_succeeded = True
+                except Exception as Exc:
+                    exception_message = str('\nError: {}'.format(Exc))
+                    print('\nTranslation failed, trying again.. (try count: {} max. tries: {})'.format(retry_count, retry_max))
+                    retry_count += 1
+                    time.sleep(1)
+
+            if not translation_succeeded:
+                print(exception_message)
+                print('Exception occurred while trying to get a translation for:\n\"{}\"\n'.format(text_to_be_translated))
+                raise RuntimeError
+
+            # Remove zero-width char's if any (Google translate bug that adds zero-width char's for no-reason)
+            line_to_add_newlines = translated_line.translate(self.trans_table)
+
+            sub.content = self.add_newline_char_to_line(line_to_add_newlines, newline_count)
+            # print('translated-sub: {}'.format(sub.content))
+
+            progress_bar.next()
 
         progress_bar.finish()
         return srt.compose(subs)
