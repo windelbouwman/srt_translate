@@ -46,16 +46,20 @@ def main():
         input_file = open(args.file, "r", encoding=file_encoding)
         input_file_data = input_file.read()
 
-        # srt_translator = GoogleTranslator(language)
-        srt_translator = DeeplTranslator(language)
+        srt_translator = GoogleTranslator(language)
+        #srt_translator = DeeplTranslator(language)
 
         subs = list(srt.parse(input_file_data))
         progress_bar = IncrementalBar('Translating', max=len(subs))
 
         for sub in subs:
-            text_to_be_translated, newline_count = remove_newline_char_from_line(sub.content)
-            line_to_add_newlines = srt_translator.translate(text_to_be_translated)
-            sub.content = add_newline_char_to_line(line_to_add_newlines, newline_count)
+            merge_is_needed = sub_merge_needed(sub.content)
+            if merge_is_needed:
+                text_to_be_translated, newline_count = remove_newline_char_from_line(sub.content)
+                line_to_add_newlines = srt_translator.translate(text_to_be_translated)
+                sub.content = add_newline_char_to_line(line_to_add_newlines, newline_count)
+            else:
+                sub.content = srt_translator.translate(sub.content)
             # print('translated-sub: {}'.format(sub.content))
             progress_bar.next()
 
@@ -95,6 +99,17 @@ def add_newline_char_to_line(line, count):
         if (count+1) % word_offset == 0:
             combined_sentence += '\n'
     return combined_sentence
+
+
+# Decides if merging lines (can result in a better translation)
+# is desired or not
+def sub_merge_needed(line):
+    lines = line.split('\n')
+    if len(lines) > 1:
+        # If a dialog (starts with '-') or capital letter, don't merge line
+        if lines[1][0] == '-' or lines[1][0].isupper():
+            return False
+    return True
 
 
 if __name__ == '__main__':
