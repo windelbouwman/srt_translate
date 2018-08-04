@@ -19,8 +19,10 @@ def main():
     help_text_language = 'The language to which to translate e.g. "nl"'
     help_text_language += '\nCheck for language codes:'
     help_text_language += '\nhttps://sites.google.com/site/tomihasa/google-language-codes'
+    help_text_service = 'The translation service to use; google (default) or deepl'
     parser.add_argument('-file', help='SRT subtitle file to translate')
     parser.add_argument('-language', help=help_text_language)
+    parser.add_argument('-service', help=help_text_service)
     args = parser.parse_args()
 
     if args.file is None or args.language is None:
@@ -34,20 +36,24 @@ def main():
     language = args.language
 
     try:
+        print('\n')
+        if args.service == 'deepl':
+            print('Using www.deepl.com translation service.')
+            srt_translator = DeeplTranslator(language)
+        else:
+            print('Using translate.google.com translation service.')
+            srt_translator = GoogleTranslator(language)
+
         output_file_name, file_extension = path.splitext(input_file_name)
         output_file_name = output_file_name + '.' + args.language + file_extension
         file_encoding = get_file_encoding(args.file)
 
-        print('\n')
         print('Input file:          {}'.format(input_file_name))
         print('Input file encoding: {}'.format(file_encoding))
         print('Output file:         {}\n'.format(output_file_name))
 
         input_file = open(args.file, "r", encoding=file_encoding)
         input_file_data = input_file.read()
-
-        srt_translator = GoogleTranslator(language)
-        #srt_translator = DeeplTranslator(language)
 
         subs = list(srt.parse(input_file_data))
         progress_bar = IncrementalBar('Translating', max=len(subs))

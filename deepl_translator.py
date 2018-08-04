@@ -13,17 +13,21 @@ class DeeplTranslator(TranslateClass):
 
         while not translation_succeeded and retry_count < self.retry_max:
             try:
-                print('\nInput: {}'.format(text_line))
+                #print('\nInput: {}'.format(text_line))
                 translation, extra_data = translator.translate(text_line, target='NL') # self.language)
-                print('translation: {}'.format(translation))
-                print('Extra data: {}'.format(extra_data))
+                #print('translation: {}'.format(translation))
+                #print('Extra data: {}'.format(extra_data))
             except Exception as Exc:
-                print(''.format(Exc))
+                print('\nException occurred: {}'.format(Exc))
 
             translation_succeeded = len(translation) != 0
 
             if not translation_succeeded:
                 retry_count += 1
                 time.sleep(5)
+
+        if not translation_succeeded:
+            print('Translation failed: \"{}\"'.format(text_line))
+            raise RuntimeError
 
         return translation
