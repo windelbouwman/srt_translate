@@ -5,7 +5,7 @@ This script can translate srt subtitle files automatically.
 
 # Usage
 
-    srt-translate original.rst dutch translated.srt
+    srt_translate -file original.srt -language "nl"
 
 # Installation
 
